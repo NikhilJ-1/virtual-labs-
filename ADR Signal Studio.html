@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ADR Signal Studio</title>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com/3.4.17"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{--ink:#17163a;--mut:#6b6d8f;--line:#e4e5f2;--acc:#5b4bdb;--acc2:#e11d48;--amb:#f59e0b;--soft:#eceafe;--nav:#1b1a4a;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{background:#f6f6fb;color:var(--ink);font-family:'Manrope',system-ui,sans-serif;margin:0}
+h1,h2,.serif{font-family:'Sora',system-ui,sans-serif;letter-spacing:-.02em}
+main h2{font-size:1.7rem!important;font-weight:700}
+.card{background:#fff;border:0;border-radius:12px;box-shadow:0 1px 2px rgba(23,22,58,.06),0 10px 26px -14px rgba(23,22,58,.22)}
+.card.kpi{border-radius:8px;border-left:4px solid var(--acc)}
+.btn{background:linear-gradient(135deg,#5b4bdb,#7c3aed);color:#fff;border-radius:999px;padding:.6rem 1.3rem;font-weight:700;cursor:pointer;border:0;box-shadow:0 6px 14px -8px rgba(91,75,219,.8)}
+.btn.ghost{background:#fff;color:var(--ink);border:1px solid var(--line);box-shadow:none}
+input,select{background:#fff;color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:.55rem .75rem;width:100%}
+input:focus,select:focus{outline:2px solid var(--acc);outline-offset:1px}
+.mut{color:var(--mut)}
+aside{background:var(--nav);color:#fff;border:0!important}
+aside .mut{color:#a9aad9}aside .btn.ghost{background:transparent;color:#fff;border-color:rgba(255,255,255,.3)}
+.step{display:flex;gap:.7rem;align-items:center;padding:.65rem .8rem;border-radius:8px;cursor:pointer;color:#b9b9e6;font-weight:600}
+.step b{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;border:1.5px solid rgba(255,255,255,.25);font-size:.78rem;flex:none}
+.step.on{background:rgba(255,255,255,.12);color:#fff}.step.on b{background:#fff;color:var(--nav);border-color:#fff}
+.step.done b{background:var(--amb);color:var(--nav);border-color:var(--amb)}
+.tw{overflow:auto;max-height:360px}
+table{border-collapse:collapse;width:100%;font-size:.85rem}th,td{padding:.5rem .7rem;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+th{position:sticky;top:0;background:#fff;color:var(--mut);text-transform:uppercase;font-size:.66rem;letter-spacing:.07em}
+tbody tr:nth-child(even){background:#fafaff}
+.kpi{padding:1rem 1.2rem}.kpi .v{font-family:'Sora',sans-serif;font-size:1.7rem;font-weight:700;color:var(--acc)}
+#authTabs .btn{padding:.5rem .6rem;font-size:.85rem;white-space:nowrap}
+.hide{display:none!important}
+.drop{border:2px dashed #c9c9ee;background:#fafaff;border-radius:12px;padding:2rem;text-align:center;cursor:pointer}.drop:hover{border-color:var(--acc);background:var(--soft)}
+.pill{border-radius:6px;padding:.1rem .55rem;font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.04em}
+.hi{background:#ffe4ea;color:#be123c}.mo{background:#fff1d6;color:#92580a}.lo{background:#e6e9ff;color:#3730a3}
+.hm td{text-align:center;padding:.5rem .4rem;border:1px solid #fff}.hm th{text-align:center;font-size:.64rem}
+.toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);background:var(--nav);color:#fff;padding:.7rem 1.3rem;border-radius:8px;font-size:.9rem;z-index:99999;opacity:0;transition:opacity .3s;pointer-events:none}
+</style>
+</head>
+<body>
+
+<section id="auth" class="min-h-screen grid md:grid-cols-2">
+  <div class="p-10 hidden md:flex flex-col justify-between" style="background:linear-gradient(160deg,#1b1a4a,#4338ca);color:#fff">
+    <div class="serif text-3xl">ADR Signal Studio</div>
+    <div><h1 class="text-4xl leading-tight mb-4">Spot adverse drug reactions before they become harm.</h1>
+    <p style="opacity:.88;max-width:30rem">Link symptoms to medicines, rank high-risk drugs, and weigh likely causes using onset timelines. Patient data is analysed locally and never uploaded.</p></div>
+    <div class="text-sm" style="opacity:.8">🔒 Privacy-first · Runs in your browser</div>
+  </div>
+  <div class="flex items-center justify-center p-6">
+    <div class="card p-7 w-full max-w-sm">
+      <div class="flex gap-2 mb-5" id="authTabs"><button class="btn flex-1" data-m="in">Sign in</button><button class="btn ghost flex-1" data-m="up">Create account</button></div>
+      <form onsubmit="return false" class="space-y-3">
+        <div id="nameRow" class="hide"><label class="text-sm mut">Full name</label><input id="aName" placeholder="Your name"></div>
+        <div><label class="text-sm mut">Email</label><input id="aEmail" type="email" placeholder="you@hospital.org"></div>
+        <div><label class="text-sm mut">Password</label><input id="aPass" type="password" placeholder="Min. 6 characters"></div>
+        <p id="aErr" class="text-sm" style="color:var(--acc2)"></p>
+        <button class="btn w-full" id="aGo">Sign in</button>
+      </form>
+      <p class="text-xs mut mt-4">Credentials are hashed and stored only in this browser.</p>
+    </div>
+  </div>
+</section>
+
+<div id="app" class="hide min-h-screen md:flex">
+  <aside class="md:w-64 p-4 md:min-h-screen border-r" style="border-color:var(--line)">
+    <div class="serif text-2xl mb-1">ADR Signal Studio</div>
+    <div class="text-xs mut mb-5" id="who"></div>
+    <nav id="steps" class="space-y-1"></nav>
+    <div class="mt-6"><button class="btn ghost text-sm" id="outBtn">Sign out</button></div>
+  </aside>
+  <main class="flex-1 p-5 md:p-8 max-w-5xl">
+
+    <div data-p="1">
+      <h2 class="text-3xl mb-1">1 · Load patient reaction data</h2>
+      <p class="mut mb-5">Upload a CSV or Excel file of drug exposures and reported symptoms, or try the sample (about 450 reports).</p>
+      <div class="grid md:grid-cols-2 gap-4 mb-5">
+        <label class="drop card" id="drop"><div class="text-3xl">⬆</div><div class="font-bold">Drop file or click to browse</div><div class="text-sm mut">.csv · .xlsx · .xls</div><input type="file" id="file" accept=".csv,.xlsx,.xls" class="hide"></label>
+        <div class="card p-6 flex flex-col justify-center gap-3"><div class="font-bold">No file handy?</div><div class="text-sm mut">Loads synthetic reports with duplicates, gaps and messy labels.</div><button class="btn" id="sample">Use sample dataset</button></div>
+      </div>
+      <div id="browse" class="hide">
+        <div class="card p-5 mb-4"><div class="font-bold mb-1">Column mapping</div><div class="text-xs mut mb-3">Needed: Drug, Symptom, Start date and Onset date. Others improve the risk and cause analysis.</div><div class="grid grid-cols-2 md:grid-cols-5 gap-3" id="mapGrid"></div></div>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4" id="rawKpi"></div>
+        <div class="card p-3"><div class="tw" id="rawTbl"></div></div>
+        <div class="mt-4"><button class="btn" onclick="go(2)">Analyse reactions →</button></div>
+      </div>
+    </div>
+
+    <div data-p="2" class="hide">
+      <h2 class="text-3xl mb-1">2 · Reaction analysis</h2>
+      <p class="mut mb-5" id="note"></p>
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4" id="kpi"></div>
+      <div class="grid md:grid-cols-2 gap-4">
+        <div class="card p-4"><div class="font-bold">Strongest drug–symptom signals</div><div class="text-xs mut mb-2">Proportional reporting ratio (PRR); 2 or more suggests a signal</div><canvas id="c1"></canvas></div>
+        <div class="card p-4"><div class="font-bold">High-risk medicines</div><div class="text-xs mut mb-2">Reports by severity, top drugs by burden</div><canvas id="c2"></canvas></div>
+        <div class="card p-4 md:col-span-2"><div class="font-bold">Drug × symptom correlation</div><div class="text-xs mut mb-2">Report counts; red outline marks a statistical signal</div><div class="tw" id="heat"></div></div>
+        <div class="card p-4 md:col-span-2"><div class="font-bold mb-2">Medicine risk ranking</div><div class="tw" id="risk"></div></div>
+        <div class="card p-4"><div class="font-bold">Time to onset</div><div class="text-xs mut mb-2">Days from drug start to symptom</div><canvas id="c3"></canvas></div>
+        <div class="card p-4"><div class="font-bold">Likelihood of causal link</div><div class="text-xs mut mb-2">Naranjo-inspired score per report</div><div style="max-width:280px;margin:auto"><canvas id="c4"></canvas></div></div>
+        <div class="card p-4"><div class="font-bold">Contributing factors</div><div class="text-xs mut mb-2">Share of reports that were severe</div><canvas id="c5"></canvas></div>
+        <div class="card p-4"><div class="font-bold">Reports over time</div><div class="text-xs mut mb-2">By month of onset</div><canvas id="c6"></canvas></div>
+      </div>
+      <div class="card p-5 mt-4"><div class="font-bold mb-2">What the analysis shows</div><ul id="take" class="text-sm space-y-1 list-disc pl-5"></ul><p class="text-xs mut mt-3">Signals are statistical associations from reports, not proof of causation. Clinical review is needed before any action.</p></div>
+      <div class="mt-4"><button class="btn" onclick="go(3)">Summary &amp; export →</button></div>
+    </div>
+
+    <div data-p="3" class="hide">
+      <h2 class="text-3xl mb-1">3 · Summary &amp; export</h2>
+      <p class="mut mb-5">Take your findings with you, generated in-browser.</p>
+      <div class="card p-5 mb-4"><pre id="sumTxt" class="whitespace-pre-wrap text-sm" style="font-family:inherit"></pre></div>
+      <div class="flex flex-wrap gap-3"><button class="btn" id="exDocx">Word (.docx)</button><button class="btn" id="exPdf">PDF report</button><button class="btn ghost" id="exCsv">CSV</button><button class="btn ghost" id="exTxt">Copy summary</button></div>
+    </div>
+  </main>
+</div>
+
+<script>
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
+const FIELDS=['Patient_ID','Age','Gender','Drug','Start_Date','Symptom','Onset_Date','Severity','Dechallenge','Co_Meds'];
+const KEYS={Patient_ID:/patient|^id$|pid/,Age:/^age|^yrs/,Gender:/gender|^sex/,Drug:/drug|medic|product/,Start_Date:/start|began|initiat/,Symptom:/symptom|reaction$|event$|adr/,Onset_Date:/onset/,Severity:/sever|grade/,Dechallenge:/dechall|stopped|resolv/,Co_Meds:/comed|concomit|othermed|polypharm/};
+const S={rows:[],headers:[],map:{},clean:null,A:null,log:{},charts:[],step:1};
+const mem={},store={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
+const f1=v=>(+v).toFixed(1),prF=v=>v>=50?'50+':(+v).toFixed(1),pct=v=>Math.round(v*100)+'%';
+function toast(){}
+
+/* auth */
+let mode='in';const sha=async t=>[...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(t)))].map(x=>x.toString(16).padStart(2,'0')).join('');
+function setMode(m){mode=m;$$('#authTabs button').forEach(x=>x.className='btn flex-1'+(x.dataset.m===m?'':' ghost'));$('#nameRow').classList.toggle('hide',m==='in');$('#aGo').textContent=m==='in'?'Sign in':'Create account';$('#aErr').textContent='';$('#aErr').style.color='var(--acc2)'}
+$$('#authTabs button').forEach(b=>b.onclick=()=>setMode(b.dataset.m));
+$('#aGo').onclick=async()=>{const e=$('#aEmail').value.trim().toLowerCase(),p=$('#aPass').value,n=$('#aName').value.trim(),err=$('#aErr');
+ if(!/^\S+@\S+\.\S+$/.test(e))return err.textContent='Enter a valid email.';if(p.length<6)return err.textContent='Password needs 6+ characters.';
+ let u={};try{u=JSON.parse(store.get('adr_users')||'{}')}catch(x){}const h=await sha(p);
+ if(mode==='up'){if(!n)return err.textContent='Please add your name.';if(u[e])return err.textContent='Account exists. Sign in instead.';u[e]={n,h};store.set('adr_users',JSON.stringify(u));setMode('in');$('#aPass').value='';$('#aName').value='';err.style.color='#15803d';err.textContent='Account created. Please sign in.';return}
+ else{if(!u[e]||u[e].h!==h)return err.textContent='Invalid email or password.';mem.u=u[e].n}
+ $('#auth').classList.add('hide');$('#app').classList.remove('hide');$('#who').textContent='Signed in as '+mem.u;go(1);toast('Welcome, '+mem.u.replace(/^Dr\.?\s*/,'').split(' ')[0]+'.')};
+$('#outBtn').onclick=()=>{$('#app').classList.add('hide');$('#auth').classList.remove('hide');$('#aPass').value=''};
+
+/* steps */
+const NAMES=['Load data','Reaction analysis','Summary & export'];
+function go(n){if(n>1&&!S.rows.length)return alert('Load a dataset first.');
+ if(n>1&&!S.clean&&!runClean())return;
+ S.step=n;$$('[data-p]').forEach(p=>p.classList.toggle('hide',+p.dataset.p!==n));
+ $('#steps').innerHTML=NAMES.map((t,i)=>`<div class="step ${S.step===i+1?'on':''} ${S.step>i+1?'done':''}" data-s="${i+1}"><b>${S.step>i+1?'✓':i+1}</b>${t}</div>`).join('');$$('.step').forEach(el=>el.onclick=()=>go(+el.dataset.s));
+ if(n===2)analyse();if(n===3)$('#sumTxt').textContent=text();window.scrollTo(0,0)}
+
+/* sample data */
+const SAMPLE=(()=>{let s=33;const r=()=>(s=(s*9301+49297)%233280)/233280,ri=(a,b)=>a+Math.floor(r()*(b-a+1));
+ const D=[['Amoxicillin',10,[['Rash',6,0,3,10],['Diarrhoea',3,0,1,6],['Nausea',2,0,1,4]]],['Metformin',9,[['Diarrhoea',5,0,3,20],['Nausea',4,0,2,14],['Fatigue',1,0,10,40]]],['Atorvastatin',8,[['Myalgia',6,1,20,90],['Elevated ALT',3,2,30,90],['Fatigue',1,0,10,40]]],['Amlodipine',8,[['Ankle oedema',6,0,14,60],['Dizziness',2,0,1,14],['Headache',2,0,1,10]]],['Enalapril',7,[['Dry cough',6,0,14,60],['Hyperkalaemia',3,2,7,45],['Dizziness',2,0,1,14]]],['Diclofenac',8,[['Dyspepsia',4,0,1,10],['GI bleeding',4,2,3,30],['Renal impairment',2,2,10,60]]],['Warfarin',5,[['Bleeding',6,2,5,40],['Bruising',4,0,3,25]]],['Ciprofloxacin',6,[['Tendon pain',4,1,3,21],['Nausea',3,0,1,5],['Insomnia',2,0,2,10]]],['Azithromycin',5,[['Nausea',4,0,1,5],['Diarrhoea',3,0,1,6],['Rash',1,0,2,8]]]];
+ const NOISE=['Headache','Fatigue','Dizziness','Nausea','Insomnia','Rash','Diarrhoea','Myalgia','Dry cough','Ankle oedema','Dyspepsia','Bruising','Tendon pain','Bleeding'],SEV=[[.7,.25],[.3,.5],[.1,.35]];
+ const pickW=a=>{let t=a.reduce((x,y)=>x+y[1],0)*r(),i=0;while((t-=a[i][1])>0&&i<a.length-1)i++;return a[i]};
+ const iso=d=>d.toISOString().slice(0,10),out=[];
+ for(let i=1;i<=450;i++){const d=pickW(D);let sy,base,lo,hi,sig=true;
+  if(r()<.35){sy=NOISE[ri(0,NOISE.length-1)];base=0;lo=1;hi=30;sig=false}else{const x=pickW(d[2]);sy=x[0];base=x[2];lo=x[3];hi=x[4]}
+  const age=Math.min(90,Math.max(18,Math.round(52+(r()+r()+r()-1.5)*28))),co=ri(0,6);
+  const q=r(),sv=SEV[base];let k=q<sv[0]?0:q<sv[0]+sv[1]?1:2;if(age>=60&&r()<.25)k=Math.min(2,k+1);if(co>=4&&r()<.25)k=Math.min(2,k+1);
+  const st=new Date(Date.UTC(2025,9,1)+ri(0,330)*864e5),on=new Date(st.getTime()+ri(lo,hi)*864e5),z=r();
+  const dc=sig?(z<.7?'Yes':z<.8?'No':'NA'):(z<.3?'Yes':z<.6?'No':'NA'),sevs=['Mild','Moderate','Severe'];
+  out.push({Patient_ID:'P'+String(1000+i),Age:age,Gender:r()<.5?'Male':r()<.5?'Female':'F',Drug:r()<.06?d[0].toUpperCase():d[0],Start_Date:iso(st),Symptom:sy,Onset_Date:iso(on),Severity:r()<.08?sevs[k].toLowerCase():sevs[k],Dechallenge:dc,Co_Meds:r()<.03?'':co})}
+ out.push({...out[8]},{...out[60]},{...out[140]});return out})();
+
+/* load */
+function load(rows){if(!rows.length)return alert('No rows found in that file.');
+ rows.forEach(r=>{for(const k in r)if(r[k] instanceof Date)r[k]=isNaN(r[k])?'':r[k].toISOString().slice(0,10)});
+ S.rows=rows;S.headers=Object.keys(rows[0]);S.clean=null;S.map={};const used=new Set();
+ FIELDS.forEach(f=>{const h=S.headers.find(h=>!used.has(h)&&KEYS[f].test(h.toLowerCase().replace(/[_\s]/g,'')));S.map[f]=h||'';if(h)used.add(h)});
+ $('#browse').classList.remove('hide');drawMap();drawRaw()}
+function drawMap(){$('#mapGrid').innerHTML=FIELDS.map(f=>`<div><label class="text-xs mut">${f.replace('_',' ')}</label><select data-f="${f}"><option value="">none</option>${S.headers.map(h=>`<option ${S.map[f]===h?'selected':''}>${h}</option>`).join('')}</select></div>`).join('');
+ $$('#mapGrid select').forEach(s=>s.onchange=()=>{S.map[s.dataset.f]=s.value;S.clean=null;drawRaw()})}
+function toDate(v){if(v instanceof Date)return isNaN(v)?null:v;if(typeof v==='number'&&v>20000)return new Date(Math.round((v-25569)*864e5));const d=new Date(String(v).trim());return isNaN(d)?null:d}
+const mkey=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'),mlab=k=>new Date(+k.slice(0,4),+k.slice(5)-1).toLocaleString('en',{month:'short',year:'2-digit'});
+const num=v=>{const n=parseFloat(String(v).trim());return isFinite(n)?n:null};
+const med=a=>{if(!a.length)return 0;const s=[...a].sort((x,y)=>x-y),m=s.length>>1;return s.length%2?s[m]:(s[m-1]+s[m])/2};
+const kpi=a=>a.map(([l,v])=>`<div class="card kpi"><div class="text-xs mut">${l}</div><div class="v">${v}</div></div>`).join('');
+const tbl=(rows,h)=>`<table><thead><tr>${h.map(c=>`<th>${c}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr>${h.map(c=>`<td>${r[c]===''?'<span class="mut">—</span>':r[c]}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+function drawRaw(){const m=S.map,dr=m.Drug?new Set(S.rows.map(r=>String(r[m.Drug]).trim().toLowerCase())).size:'–',sy=m.Symptom?new Set(S.rows.map(r=>String(r[m.Symptom]).trim().toLowerCase())).size:'–';
+ $('#rawKpi').innerHTML=kpi([['Reports',S.rows.length],['Columns',S.headers.length],['Distinct drugs',dr],['Distinct symptoms',sy]]);$('#rawTbl').innerHTML=tbl(S.rows.slice(0,50),S.headers)}
+$('#sample').onclick=()=>load(SAMPLE.map(r=>({...r})));
+$('#file').onchange=e=>{const f=e.target.files[0];if(!f)return;const rd=new FileReader();rd.onload=ev=>{try{const wb=XLSX.read(ev.target.result,{type:'array',cellDates:true});load(XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:'',raw:true}))}catch(x){alert('Could not read that file.')}};rd.readAsArrayBuffer(f)};
+const dr=$('#drop');['dragover','drop'].forEach(ev=>dr.addEventListener(ev,e=>{e.preventDefault();if(ev==='drop'){$('#file').files=e.dataTransfer.files;$('#file').onchange({target:$('#file')})}}));
+
+/* clean (automatic) */
+const tc=s=>String(s).trim().replace(/\s+/g,' ').split(' ').map(w=>w.length<=3&&w===w.toUpperCase()&&/[A-Z]/.test(w)?w:w.charAt(0).toUpperCase()+w.slice(1).toLowerCase()).join(' ');
+function runClean(){const m=S.map;
+ if(!m.Drug||!m.Symptom||!m.Start_Date||!m.Onset_Date){alert('Please map Drug, Symptom, Start date and Onset date.');return false}
+ const ages=m.Age?S.rows.map(r=>num(r[m.Age])).filter(x=>x>0):[],ma=Math.round(med(ages));
+ const cm=r=>{const v=r[m.Co_Meds];if(v===''||v==null)return null;const n=num(v);return n!==null&&!/[,;|]/.test(String(v))?n:String(v).split(/[,;|]/).filter(x=>x.trim()).length};
+ const cms=m.Co_Meds?S.rows.map(cm).filter(x=>x!==null):[],mc=Math.round(med(cms));let drop=0,imp=0,bad=0;const rows=[];
+ S.rows.forEach(r=>{const st=toDate(r[m.Start_Date]),on=toDate(r[m.Onset_Date]),drug=tc(r[m.Drug]),sym=tc(r[m.Symptom]);if(!st||!on||!drug||!sym){drop++;return}
+  const days=Math.round((on-st)/864e5);if(days<0)bad++;
+  const sv=String(m.Severity?r[m.Severity]:'').toLowerCase(),sev=/sever|serious|grade ?[34]|life|fatal/.test(sv)?'Severe':/mod|grade ?2/.test(sv)?'Moderate':'Mild';
+  const dc=String(m.Dechallenge?r[m.Dechallenge]:'').toLowerCase().trim(),dch=/^(y|yes|pos|resolved|improved)/.test(dc)?'Yes':/^(n|no|neg)/.test(dc)?'No':'NA';
+  let age=m.Age?num(r[m.Age]):null;if(m.Age&&!(age>0)){age=ma;imp++}
+  let co=m.Co_Meds?cm(r):null;if(m.Co_Meds&&co===null){co=mc;imp++}
+  const g=String(m.Gender?r[m.Gender]:'').toLowerCase().trim();
+  rows.push({Patient_ID:m.Patient_ID?String(r[m.Patient_ID]).trim():'',Age:age,Gender:/^m/.test(g)?'Male':/^f/.test(g)?'Female':'Unknown',Drug:drug,Symptom:sym,Start_Date:st.toISOString().slice(0,10),Onset_Date:on.toISOString().slice(0,10),Days:days,Month:mkey(on),Severity:sev,Dechallenge:dch,Co_Meds:co})});
+ const seen=new Set(),out=[];rows.forEach(r=>{const k=[r.Patient_ID,r.Drug,r.Symptom,r.Onset_Date].join('|').toLowerCase();if(!seen.has(k)){seen.add(k);out.push(r)}});
+ if(out.length<10){alert('Too few usable rows after cleaning. Check the column mapping.');return false}
+ S.clean=out;S.log={dups:rows.length-out.length,drop,imp,bad};S.A=null;return true}
+
+/* analysis */
+function analyse(){const C=S.clean,N=C.length,m=S.map,W={Mild:1,Moderate:2,Severe:3},A={N,drug:{},sym:{},pair:{}};
+ C.forEach(r=>{const d=A.drug[r.Drug]=A.drug[r.Drug]||{n:0,Mild:0,Moderate:0,Severe:0,days:[],sig:0,prob:0};d.n++;d[r.Severity]++;if(r.Days>=0)d.days.push(r.Days);
+  A.sym[r.Symptom]=(A.sym[r.Symptom]||0)+1;const k=r.Drug+'||'+r.Symptom;A.pair[k]=(A.pair[k]||0)+1});
+ A.pairs=Object.entries(A.pair).map(([k,a])=>{const [dg,sy]=k.split('||'),dt=A.drug[dg].n,st=A.sym[sy],b=dt-a,c0=st-a,dd=N-a-b-c0,c=c0||.5;
+  const prr=(a/dt)/(c/(c0+dd||1)),den=(a+b)*(c0+dd)*(a+c0)*(b+dd),chi=den?N*Math.pow(a*dd-b*c0,2)/den:0;
+  return {dg,sy,a,prr,chi,sig:a>=3&&prr>=2&&chi>=4}}).sort((x,y)=>(y.sig-x.sig)||(y.prr-x.prr));
+ const sigSet=new Set(A.pairs.filter(p=>p.sig).map(p=>p.dg+'||'+p.sy));A.sigN=sigSet.size;A.pairs.filter(p=>p.sig).forEach(p=>A.drug[p.dg].sig++);
+ C.forEach(r=>{let sc=r.Days>=0?2:-1;sc+=r.Dechallenge==='Yes'?1:r.Dechallenge==='No'?-1:0;if(sigSet.has(r.Drug+'||'+r.Symptom))sc+=1;if(r.Co_Meds!==null&&r.Co_Meds>=3)sc-=1;
+  r.Score=sc;r.Causality=sc>=4?'Probable':sc>=2?'Possible':'Doubtful';if(r.Causality==='Probable')A.drug[r.Drug].prob++});
+ const ds=Object.entries(A.drug).map(([n,d])=>{d.burden=d.Mild+2*d.Moderate+3*d.Severe;d.sevShare=d.Severe/d.n;d.med=med(d.days);return [n,d]});
+ const mb=Math.max(...ds.map(x=>x[1].burden));ds.forEach(([n,d])=>{d.risk=Math.round(100*(.5*d.burden/mb+.3*d.sevShare+.2*Math.min(d.sig/3,1)));d.tier=d.risk>=60?'High':d.risk>=35?'Moderate':'Lower'});
+ A.ds=ds.sort((a,b)=>b[1].risk-a[1].risk);
+ const sev=C.filter(r=>r.Severity==='Severe').length;A.sevN=sev;
+ const grp=(f,keys)=>keys.map(([lab,fn])=>{const g=C.filter(fn);return {lab:`${lab} (n=${g.length})`,v:g.length?g.filter(r=>r.Severity==='Severe').length/g.length*100:0,n:g.length}});
+ A.fac=[...(m.Age?grp('Age',[['Under 40',r=>r.Age<40],['40–59',r=>r.Age>=40&&r.Age<60],['60+',r=>r.Age>=60]]):[]),...(m.Co_Meds?grp('Co',[['0–1 co-meds',r=>r.Co_Meds<=1],['2–3 co-meds',r=>r.Co_Meds>=2&&r.Co_Meds<=3],['4+ co-meds',r=>r.Co_Meds>=4]]):[]),...(m.Gender?grp('G',[['Male',r=>r.Gender==='Male'],['Female',r=>r.Gender==='Female']]):[])].filter(x=>x.n>0);
+ A.caus={Probable:0,Possible:0,Doubtful:0};C.forEach(r=>A.caus[r.Causality]++);
+ const dv=C.map(r=>r.Days).filter(x=>x>=0);A.medDays=med(dv);A.early=dv.filter(x=>x<=14).length/(dv.length||1);
+ A.mon={};C.forEach(r=>{const o=A.mon[r.Month]=A.mon[r.Month]||{n:0,s:0};o.n++;if(r.Severity==='Severe')o.s++});A.months=Object.keys(A.mon).sort();S.A=A;render()}
+function render(){const A=S.A,C=S.clean;
+ $('#note').textContent=`Based on ${A.N} cleaned reports (${S.log.dups} duplicates removed, ${S.log.drop} unusable rows dropped, ${S.log.imp} gaps filled, ${S.log.bad} with onset before start flagged).`;
+ $('#kpi').innerHTML=kpi([['Reports analysed',A.N],['Drugs involved',A.ds.length],['Signals detected',A.sigN],['Severe reactions',pct(A.sevN/A.N)]]);
+ const top=A.ds.slice(0,8).map(x=>x[0]),sy=Object.entries(A.sym).sort((a,b)=>b[1]-a[1]).slice(0,8).map(x=>x[0]);let mx=1;A.pairs.forEach(p=>{if(top.includes(p.dg)&&sy.includes(p.sy))mx=Math.max(mx,p.a)});
+ const ps={};A.pairs.forEach(p=>ps[p.dg+'||'+p.sy]=p);
+ $('#heat').innerHTML=`<table class="hm"><thead><tr><th></th>${sy.map(s=>`<th>${s}</th>`).join('')}</tr></thead><tbody>${top.map(d=>`<tr><th style="text-align:left;position:static">${d}</th>${sy.map(s=>{const p=ps[d+'||'+s],v=p?p.a:0,t=v/mx;return `<td style="background:${v?`rgba(91,75,219,${.1+.8*t})`:'#f3f3fa'};color:${t>.5?'#fff':'#17163a'};${p&&p.sig?'outline:2px solid #e11d48;outline-offset:-2px;font-weight:700':''}">${v||''}</td>`}).join('')}</tr>`).join('')}</tbody></table>`;
+ $('#risk').innerHTML=`<table><thead><tr><th>Medicine</th><th>Reports</th><th>Severe</th><th>Signals</th><th>Median onset (days)</th><th>Probable link</th><th>Risk index</th><th>Tier</th></tr></thead><tbody>${A.ds.map(([n,d])=>`<tr><td>${n}</td><td>${d.n}</td><td>${pct(d.sevShare)}</td><td>${d.sig}</td><td>${d.med}</td><td>${pct(d.prob/d.n)}</td><td>${d.risk}</td><td><span class="pill ${d.tier==='High'?'hi':d.tier==='Moderate'?'mo':'lo'}">${d.tier}</span></td></tr>`).join('')}</tbody></table>`;
+ const hi=A.ds.filter(x=>x[1].tier==='High').map(x=>x[0]),sg=A.pairs.filter(p=>p.sig),f=A.fac;const fv=l=>(f.find(x=>x.lab.startsWith(l))||{}).v;
+ A.hi=hi;A.sg=sg;
+ $('#take').innerHTML=[sg.length?`<b>${sg[0].dg} → ${sg[0].sy}</b> is the strongest signal (PRR ${prF(sg[0].prr)}, ${sg[0].a} reports). ${sg.length} drug–symptom pairs meet the signal criteria.`:'No drug–symptom pair meets the signal criteria (PRR ≥ 2, 3+ cases, χ² ≥ 4).',
+  `High-risk medicines: <b>${hi.length?hi.join(', '):'none flagged'}</b>. Top of the ranking is ${A.ds[0][0]} (risk index ${A.ds[0][1].risk}, ${pct(A.ds[0][1].sevShare)} severe).`,
+  `The median time to onset is ${A.medDays} days, and ${pct(A.early)} of reactions appear within two weeks of starting the drug.`,
+  `${A.caus.Probable} reports (${pct(A.caus.Probable/A.N)}) score as probable and ${A.caus.Possible} (${pct(A.caus.Possible/A.N)}) as possible causal links.`,
+  (fv('60+')!==undefined&&fv('Under 40')!==undefined?`Severe reactions are ${f1(fv('60+'))}% in patients aged 60+ versus ${f1(fv('Under 40'))}% under 40`:'')+(fv('4+')!==undefined&&fv('0–1')!==undefined?`${fv('60+')!==undefined?'; ':''}${f1(fv('4+'))}% with 4+ co-medications versus ${f1(fv('0–1'))}% with 0–1.`:'.')].filter(Boolean).map(t=>`<li>${t}</li>`).join('');
+ draw()}
+function draw(){S.charts.forEach(c=>c.destroy());S.charts=[];const A=S.A,AC='#5b4bdb',OR='#e11d48',AM='#f59e0b',GR='#ececf6',mk=(id,c)=>S.charts.push(new Chart($(id),c));
+ Chart.defaults.color='#6b6d8f';Chart.defaults.font.family="'Manrope',sans-serif";const ax={x:{grid:{color:GR}},y:{grid:{color:GR}}},nl={plugins:{legend:{display:false}},scales:ax};
+ const tp=A.pairs.slice(0,8);
+ mk('#c1',{type:'bar',data:{labels:tp.map(p=>p.dg+' → '+p.sy),datasets:[{data:tp.map(p=>+Math.min(p.prr,30).toFixed(1)),backgroundColor:tp.map(p=>p.sig?OR:'#c3c6e0'),borderRadius:6}]},options:{indexAxis:'y',plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`PRR ${prF(tp[c.dataIndex].prr)} · ${tp[c.dataIndex].a} reports`}}},scales:ax}});
+ const bd=[...A.ds].sort((a,b)=>b[1].burden-a[1].burden).slice(0,8);
+ mk('#c2',{type:'bar',data:{labels:bd.map(x=>x[0]),datasets:[['Mild','#9aa6fb'],['Moderate',AM],['Severe',OR]].map(([k,c])=>({label:k,data:bd.map(x=>x[1][k]),backgroundColor:c}))},options:{indexAxis:'y',scales:{x:{stacked:true,grid:{color:GR}},y:{stacked:true,grid:{color:GR}}}}});
+ const bins=[[0,1,'0–1'],[2,7,'2–7'],[8,14,'8–14'],[15,30,'15–30'],[31,60,'31–60'],[61,1e9,'61+']];
+ mk('#c3',{type:'bar',data:{labels:bins.map(b=>b[2]+' d'),datasets:[{data:bins.map(b=>S.clean.filter(r=>r.Days>=b[0]&&r.Days<=b[1]).length),backgroundColor:AC,borderRadius:6}]},options:nl});
+ mk('#c4',{type:'doughnut',data:{labels:Object.keys(A.caus),datasets:[{data:Object.values(A.caus),backgroundColor:[OR,AM,'#c3c6e0'],borderColor:'#fff'}]},options:{cutout:'60%'}});
+ mk('#c5',{type:'bar',data:{labels:A.fac.map(x=>x.lab),datasets:[{data:A.fac.map(x=>+x.v.toFixed(1)),backgroundColor:A.fac.map(x=>x.v>=A.sevN/A.N*100?OR:AC),borderRadius:6}]},options:{plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.raw+'% severe'}}},scales:ax}});
+ mk('#c6',{type:'line',data:{labels:A.months.map(mlab),datasets:[{label:'All reports',data:A.months.map(k=>A.mon[k].n),borderColor:AC,backgroundColor:'rgba(91,75,219,.12)',fill:true,tension:.3},{label:'Severe',data:A.months.map(k=>A.mon[k].s),borderColor:OR,tension:.3}]},options:{scales:ax}})}
+
+/* export */
+function text(){if(!S.A)analyse();const A=S.A,sg=A.sg.slice(0,5);
+ return `ADVERSE DRUG REACTION ANALYSIS\nGenerated ${new Date().toLocaleDateString()}\n\n`+
+ `Reports analysed: ${A.N} (${S.log.dups} duplicates removed, ${S.log.drop} unusable rows dropped, ${S.log.imp} gaps filled). ${A.ds.length} drugs, ${Object.keys(A.sym).length} distinct symptoms; ${pct(A.sevN/A.N)} severe.\n`+
+ `Signals (PRR ≥ 2, 3+ cases, chi-square ≥ 4): ${A.sigN}. Strongest: ${sg.length?sg.map(p=>`${p.dg} → ${p.sy} (PRR ${prF(p.prr)}, n=${p.a})`).join('; '):'none'}.\n`+
+ `High-risk medicines: ${A.hi.length?A.hi.join(', '):'none flagged'}. Risk ranking: ${A.ds.slice(0,5).map(x=>`${x[0]} (${x[1].risk})`).join(', ')}.\n`+
+ `Timeline: median onset ${A.medDays} days; ${pct(A.early)} within 14 days of starting the drug.\n`+
+ `Causality (Naranjo-inspired): ${A.caus.Probable} probable, ${A.caus.Possible} possible, ${A.caus.Doubtful} doubtful.\n`+
+ `Contributing factors (share severe): ${A.fac.map(x=>`${x.lab} ${f1(x.v)}%`).join('; ')}.\n`+
+ `Note: signals are statistical associations from reports and need clinical review.`}
+const DLP=(typeof claude!=='undefined'&&claude.use)?claude.use('downloads').catch(()=>null):Promise.resolve(null);
+async function saveFile(name,blob){
+ try{const d=await DLP;if(d){await d.save({filename:name,data:blob});return}}catch(e){if(e&&e.code==='declined')return}
+ const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),4000)}
+const asc=s=>String(s).replace(/→/g,'->').replace(/≥/g,'>=').replace(/[–—]/g,'-').replace(/×/g,'x').replace(/[·]/g,'-').replace(/χ/g,'chi').replace(/[^\x20-\x7e]/g,'');
+const wrap=(s,w=96)=>{const out=[];String(s).split('\n').forEach(p=>{let l='';p.split(' ').forEach(x=>{if((l+' '+x).trim().length>w){out.push(l);l=x}else l=(l+' '+x).trim()});out.push(l)});return out};
+
+/* CSV */
+$('#exCsv').onclick=()=>{const q=v=>`"${String(v??'').replace(/"/g,'""')}"`,H=['Patient_ID','Age','Gender','Drug','Symptom','Start_Date','Onset_Date','Days','Severity','Dechallenge','Co_Meds','Score','Causality'];
+ saveFile('adr_reports.csv',new Blob(['\ufeff'+[H.join(','),...S.clean.map(r=>H.map(h=>q(r[h])).join(','))].join('\n')],{type:'text/csv'}))};
+/* Copy */
+$('#exTxt').onclick=async()=>{const b=$('#exTxt'),t=text();let ok=false;try{await navigator.clipboard.writeText(t);ok=true}catch(e){try{const a=document.createElement('textarea');a.value=t;document.body.appendChild(a);a.select();ok=document.execCommand('copy');a.remove()}catch(x){}}
+ const o=b.textContent;b.textContent=ok?'Copied ✓':'Select text above';setTimeout(()=>b.textContent=o,1600)};
+
+/* ZIP (stored) + DOCX, no libraries */
+const crcT=(()=>{const t=[];for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0}return t})();
+const crc=b=>{let c=-1;for(let i=0;i<b.length;i++)c=crcT[(c^b[i])&255]^(c>>>8);return (c^-1)>>>0};
+function zip(files,type){const enc=new TextEncoder(),parts=[],cen=[];let off=0;const u16=v=>[v&255,v>>8&255],u32=v=>[v&255,v>>8&255,v>>16&255,v>>>24&255];
+ files.forEach(f=>{const nm=enc.encode(f[0]),d=enc.encode(f[1]),c=crc(d);
+  const h=new Uint8Array([0x50,0x4b,3,4,20,0,0,0,0,0,0,0,0,0,...u32(c),...u32(d.length),...u32(d.length),...u16(nm.length),0,0]);
+  parts.push(h,nm,d);cen.push(new Uint8Array([0x50,0x4b,1,2,20,0,20,0,0,0,0,0,0,0,0,0,...u32(c),...u32(d.length),...u32(d.length),...u16(nm.length),0,0,0,0,0,0,0,0,0,0,0,0,...u32(off)]),nm);off+=h.length+nm.length+d.length});
+ const cs=cen.reduce((a,b)=>a+b.length,0);
+ return new Blob([...parts,...cen,new Uint8Array([0x50,0x4b,5,6,0,0,0,0,...u16(files.length),...u16(files.length),...u32(cs),...u32(off),0,0])],{type})}
+const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const wp=(t,o={})=>`<w:p><w:pPr><w:spacing w:after="${o.after??120}"/></w:pPr><w:r><w:rPr>${o.b?'<w:b/>':''}${o.c?`<w:color w:val="${o.c}"/>`:''}${o.sz?`<w:sz w:val="${o.sz}"/>`:''}</w:rPr><w:t xml:space="preserve">${esc(t)}</w:t></w:r></w:p>`;
+const wt=(head,rows)=>{const bd=['top','left','bottom','right','insideH','insideV'].map(s=>`<w:${s} w:val="single" w:sz="4" w:color="C9C9EE"/>`).join(''),cell=(t,b)=>`<w:tc><w:tcPr><w:tcW w:w="0" w:type="auto"/>${b?'<w:shd w:val="clear" w:fill="ECEAFE"/>':''}</w:tcPr>${wp(t,{b,sz:18,after:0})}</w:tc>`;
+ return `<w:tbl><w:tblPr><w:tblW w:w="5000" w:type="pct"/><w:tblBorders>${bd}</w:tblBorders></w:tblPr><w:tr>${head.map(h=>cell(h,1)).join('')}</w:tr>${rows.map(r=>`<w:tr>${r.map(c=>cell(c)).join('')}</w:tr>`).join('')}</w:tbl>`+wp('',{after:80})};
+const sigRows=()=>S.A.sg.slice(0,10).map(p=>[p.dg+' → '+p.sy,p.a,prF(p.prr),f1(p.chi)]),riskRows=()=>S.A.ds.map(([n,d])=>[n,d.n,pct(d.sevShare),d.sig,d.med,pct(d.prob/d.n),d.risk,d.tier]);
+$('#exDocx').onclick=()=>{if(!S.A)analyse();const L=text().split('\n').filter(Boolean);
+ const body=wp(L[0],{b:1,sz:36,c:'1B1A4A'})+wp(L[1],{c:'6B6D8F',sz:20})+L.slice(2).map(t=>wp(t)).join('')+wp('Strongest drug-symptom signals',{b:1,sz:26,c:'5B4BDB'})+wt(['Drug → Symptom','Reports','PRR','Chi-square'],sigRows())+wp('Medicine risk ranking',{b:1,sz:26,c:'5B4BDB'})+wt(['Medicine','Reports','Severe','Signals','Median onset (d)','Probable link','Risk index','Tier'],riskRows());
+ const W='http://schemas.openxmlformats.org/';
+ saveFile('adr_report.docx',zip([['[Content_Types].xml',`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="${W}package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>`],
+ ['_rels/.rels',`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="${W}package/2006/relationships"><Relationship Id="rId1" Type="${W}officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>`],
+ ['word/document.xml',`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="${W}wordprocessingml/2006/main"><w:body>${body}<w:sectPr><w:pgMar w:top="1080" w:right="1080" w:bottom="1080" w:left="1080"/></w:sectPr></w:body></w:document>`]],'application/vnd.openxmlformats-officedocument.wordprocessingml.document'))};
+
+/* PDF (hand-built, no libraries) */
+function jpeg(c){const s=c.canvas,t=document.createElement('canvas');t.width=s.width;t.height=s.height;const x=t.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,t.width,t.height);x.drawImage(s,0,0);const b=atob(t.toDataURL('image/jpeg',.92).split(',')[1]),u=new Uint8Array(b.length);for(let i=0;i<b.length;i++)u[i]=b.charCodeAt(i);return {d:u,w:t.width,h:t.height}}
+function makePdf(title,lines,imgs){
+ const enc=s=>{const a=new Uint8Array(s.length);for(let i=0;i<s.length;i++)a[i]=s.charCodeAt(i)&255;return a},out=[],offs=[];let pos=0;
+ const push=c=>{const u=typeof c==='string'?enc(c):c;out.push(u);pos+=u.length},ob=(id,parts)=>{offs[id]=pos;push(id+' 0 obj\n');parts.forEach(push);push('\nendobj\n')},tx=s=>asc(s).replace(/[\\()]/g,'\\$&');
+ const per=46,tp=Math.max(1,Math.ceil(lines.length/per)),ni=imgs.length,ip=Math.ceil(ni/2),np=tp+ip,total=4+ni+2*np+1;
+ push('%PDF-1.4\n');
+ ob(1,['<< /Type /Catalog /Pages 2 0 R >>']);ob(2,[`<< /Type /Pages /Count ${np} /Kids [${Array.from({length:np},(_,k)=>(6+ni+2*k)+' 0 R').join(' ')}] >>`]);
+ ob(3,['<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>']);ob(4,['<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>']);
+ imgs.forEach((im,i)=>ob(5+i,[`<< /Type /XObject /Subtype /Image /Width ${im.w} /Height ${im.h} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${im.d.length} >>\nstream\n`,im.d,'\nendstream']));
+ const page=(k,content,xo)=>{const cid=5+ni+2*k,s=enc(content);ob(cid,[`<< /Length ${s.length} >>\nstream\n`,s,'\nendstream']);ob(cid+1,[`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> /XObject << ${xo} >> >> /Contents ${cid} 0 R >>`])};
+ for(let k=0;k<tp;k++){const ch=lines.slice(k*per,(k+1)*per);let c='';if(k===0)c+=`BT /F2 20 Tf 50 790 Td (${tx(title)}) Tj ET\n`;
+  c+=`BT /F1 10 Tf 50 ${k===0?758:790} Td 14 TL\n`+ch.map(l=>`(${tx(l)}) Tj T*`).join('\n')+'\nET';page(k,c,'')}
+ for(let j=0;j<ip;j++){let c='',xo='',y=790;[j*2,j*2+1].forEach(i=>{if(i>=ni)return;const im=imgs[i],W=495,H=Math.min(330,W*im.h/im.w),w=H*im.w/im.h;
+  c+=`BT /F2 12 Tf 50 ${y} Td (${tx(im.cap)}) Tj ET\nq ${w.toFixed(1)} 0 0 ${H.toFixed(1)} 50 ${(y-12-H).toFixed(1)} cm /Im${i} Do Q\n`;xo+=`/Im${i} ${5+i} 0 R `;y-=H+48});page(tp+j,c,xo)}
+ const xr=pos;push(`xref\n0 ${total}\n0000000000 65535 f \n`);for(let i=1;i<total;i++)push(String(offs[i]).padStart(10,'0')+' 00000 n \n');
+ push(`trailer\n<< /Size ${total} /Root 1 0 R >>\nstartxref\n${xr}\n%%EOF`);return new Blob(out,{type:'application/pdf'})}
+$('#exPdf').onclick=()=>{if(!S.A)analyse();const A=S.A,t=text().split('\n').filter(Boolean).slice(1);
+ let lines=[];t.forEach(x=>{lines.push(...wrap(asc(x)),'')});lines.push('Strongest drug-symptom signals','');A.sg.slice(0,10).forEach(p=>lines.push(asc(`${p.dg} -> ${p.sy}: ${p.a} reports, PRR ${prF(p.prr)}, chi-square ${f1(p.chi)}`)));
+ lines.push('','Medicine risk ranking','');A.ds.forEach(([n,d])=>lines.push(asc(`${n}: ${d.n} reports, ${pct(d.sevShare)} severe, ${d.sig} signals, median onset ${d.med} d, risk ${d.risk} (${d.tier})`)));
+ const caps=['Strongest drug-symptom signals (PRR)','High-risk medicines by severity','Time to onset','Likelihood of causal link','Contributing factors (share severe)','Reports over time'],imgs=[];
+ S.charts.forEach((c,i)=>{if(c.canvas.width>0){const j=jpeg(c);j.cap=caps[i];imgs.push(j)}});
+ saveFile('adr_report.pdf',makePdf('Adverse Drug Reaction Report',lines,imgs))};
+</script>
+</body>
+</html>

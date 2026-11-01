@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>PharmaSales Studio</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com/3.4.17"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/docx@7.8.2/build/index.js"></script>
+<style>
+:root{--bg:#fff;--card:#fff;--ink:#1d2b2a;--mut:#6a7673;--line:#e6e8eb;--acc:#0f766e;--acc2:#e4572e;--soft:#d9efe9;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{background:#fff;color:var(--ink);font-family:'DM Sans',system-ui,sans-serif;margin:0}
+h1,h2,.serif{font-family:'Fraunces',Georgia,serif}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px}
+.btn{background:var(--acc);color:#fff;border-radius:12px;padding:.6rem 1.1rem;font-weight:700;cursor:pointer;border:0}
+.btn.ghost{background:#fff;color:var(--ink);border:1px solid var(--line)}
+.seg button{padding:.25rem .8rem;border-radius:99px;border:1px solid var(--line);font-size:.8rem;cursor:pointer;background:#fff}
+.seg button.on{background:var(--acc);color:#fff;border-color:var(--acc)}
+input,select{background:#fff;color:var(--ink);border:1px solid var(--line);border-radius:10px;padding:.55rem .75rem;width:100%}
+.mut{color:var(--mut)}
+.step{display:flex;gap:.7rem;align-items:center;padding:.65rem .8rem;border-radius:12px;cursor:pointer;color:var(--mut);font-weight:500}
+.step b{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;border:1.5px solid var(--line);font-size:.8rem;flex:none}
+.step.on{background:var(--soft);color:var(--ink)}.step.on b{background:var(--acc);color:#fff;border-color:var(--acc)}
+.step.done b{background:var(--acc2);color:#fff;border-color:var(--acc2)}
+.tw{overflow:auto;max-height:340px}
+table{border-collapse:collapse;width:100%;font-size:.85rem}th,td{padding:.45rem .7rem;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}th{position:sticky;top:0;background:#fff;color:var(--mut)}
+.kpi{padding:1rem 1.2rem}.kpi .v{font-family:'Fraunces',serif;font-size:1.8rem;color:var(--acc)}
+.hide{display:none!important}
+.drop{border:2px dashed var(--line);border-radius:18px;padding:2rem;text-align:center;cursor:pointer}.drop:hover{border-color:var(--acc)}
+.toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);background:#0d3b36;color:#fff;padding:.7rem 1.3rem;border-radius:8px;font-size:.9rem;z-index:99999;opacity:0;transition:opacity .3s;pointer-events:none}
+</style>
+</head>
+<body>
+
+<section id="auth" class="min-h-screen grid md:grid-cols-2">
+  <div class="p-10 hidden md:flex flex-col justify-between" style="background:var(--acc);color:#fff">
+    <div class="serif text-3xl">PharmaSales Studio</div>
+    <div><h1 class="text-4xl leading-tight mb-4">Understand what your pharmacy sells, and what it earns.</h1>
+    <p style="opacity:.88;max-width:30rem">Find top-selling medicines, track monthly sales growth, and compare branded and generic revenue. Your sales data is analysed locally and never uploaded.</p></div>
+    <div class="text-sm" style="opacity:.8">🔒 Privacy-first · Runs in your browser</div>
+  </div>
+  <div class="flex items-center justify-center p-6">
+    <div class="card p-7 w-full max-w-sm">
+      <div class="flex gap-2 mb-5" id="authTabs"><button class="btn flex-1" data-m="in">Sign in</button><button class="btn ghost flex-1" data-m="up">Create account</button></div>
+      <form onsubmit="return false" class="space-y-3">
+        <div id="nameRow" class="hide"><label class="text-sm mut">Full name</label><input id="aName" placeholder="Your name"></div>
+        <div><label class="text-sm mut">Email</label><input id="aEmail" type="email" placeholder="you@pharmacy.com"></div>
+        <div><label class="text-sm mut">Password</label><input id="aPass" type="password" placeholder="Min. 6 characters"></div>
+        <p id="aErr" class="text-sm" style="color:var(--acc2)"></p>
+        <button class="btn w-full" id="aGo">Sign in</button>
+      </form>
+      <p class="text-xs mut mt-4">Credentials are hashed and stored only in this browser.</p>
+    </div>
+  </div>
+</section>
+
+<div id="app" class="hide min-h-screen md:flex">
+  <aside class="md:w-64 p-4 md:min-h-screen border-r" style="border-color:var(--line)">
+    <div class="serif text-2xl mb-1">PharmaSales Studio</div>
+    <div class="text-xs mut mb-5" id="who"></div>
+    <nav id="steps" class="space-y-1"></nav>
+    <div class="mt-6"><button class="btn ghost text-sm" id="outBtn">Sign out</button></div>
+  </aside>
+  <main class="flex-1 p-5 md:p-8 max-w-5xl">
+
+    <div data-p="1">
+      <h2 class="text-3xl mb-1">1 · Load your sales data</h2>
+      <p class="mut mb-5">Upload a CSV or Excel sales export, or try the sample (12 months, branded and generic medicines).</p>
+      <div class="grid md:grid-cols-2 gap-4 mb-5">
+        <label class="drop card" id="drop"><div class="text-3xl">⬆</div><div class="font-bold">Drop file or click to browse</div><div class="text-sm mut">.csv · .xlsx · .xls</div><input type="file" id="file" accept=".csv,.xlsx,.xls" class="hide"></label>
+        <div class="card p-6 flex flex-col justify-center gap-3"><div class="font-bold">No file handy?</div><div class="text-sm mut">Loads about 600 sales records with a few duplicates and gaps.</div><button class="btn" id="sample">Use sample dataset</button></div>
+      </div>
+      <div id="browse" class="hide">
+        <div class="card p-5 mb-4"><div class="font-bold mb-1">Column mapping</div><div class="text-xs mut mb-3">Needed: Date, Medicine, Type (Branded/Generic), Quantity and Unit price. Category and Revenue are optional; revenue is calculated if missing.</div><div class="grid grid-cols-2 md:grid-cols-4 gap-3" id="mapGrid"></div></div>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4" id="rawKpi"></div>
+        <div class="card p-3"><div class="tw" id="rawTbl"></div></div>
+        <div class="mt-4"><button class="btn" onclick="go(2)">Analyse sales →</button></div>
+      </div>
+    </div>
+
+    <div data-p="2" class="hide">
+      <h2 class="text-3xl mb-1">2 · Sales analysis</h2>
+      <p class="mut mb-5" id="note"></p>
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4" id="kpi"></div>
+      <div class="grid md:grid-cols-2 gap-4">
+        <div class="card p-4"><div class="flex justify-between items-center mb-2"><div class="font-bold">Top-selling medicines</div><div class="seg flex gap-1" id="seg"><button class="on" data-k="rev">Revenue</button><button data-k="units">Units</button></div></div><canvas id="c1"></canvas></div>
+        <div class="card p-4"><div class="font-bold mb-2">Branded vs generic: revenue share</div><div style="max-width:300px;margin:auto"><canvas id="c4"></canvas></div></div>
+        <div class="card p-4 md:col-span-2"><div class="font-bold mb-2">Monthly revenue trend</div><div style="height:280px"><canvas id="c2"></canvas></div></div>
+        <div class="card p-4"><div class="font-bold mb-2">Month-on-month growth (%)</div><canvas id="c3"></canvas></div>
+        <div class="card p-4"><div class="font-bold mb-2">Monthly revenue: branded vs generic</div><canvas id="c5"></canvas></div>
+        <div class="card p-4"><div class="font-bold mb-2">Revenue by category</div><canvas id="c6"></canvas></div>
+        <div class="card p-4"><div class="font-bold mb-2">Branded vs generic comparison</div><div class="tw" id="cmp"></div></div>
+      </div>
+      <div class="card p-5 mt-4"><div class="font-bold mb-2">What the charts show</div><ul id="take" class="text-sm space-y-1 list-disc pl-5"></ul></div>
+      <div class="mt-4"><button class="btn" onclick="go(3)">Summary &amp; export →</button></div>
+    </div>
+
+    <div data-p="3" class="hide">
+      <h2 class="text-3xl mb-1">3 · Summary &amp; export</h2>
+      <p class="mut mb-5">Take your findings with you, generated in-browser.</p>
+      <div class="card p-5 mb-4"><pre id="sumTxt" class="whitespace-pre-wrap text-sm" style="font-family:inherit"></pre></div>
+      <div class="flex flex-wrap gap-3"><button class="btn" id="exDocx">Word (.docx)</button><button class="btn" id="exPdf">PDF report</button><button class="btn ghost" id="exCsv">Cleaned CSV</button><button class="btn ghost" id="exTxt">Copy summary</button></div>
+    </div>
+  </main>
+</div>
+
+<script>
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
+const FIELDS=['Date','Medicine','Type','Category','Quantity','Unit_Price','Revenue'];
+const KEYS={Date:['date','day'],Medicine:['medicine','drug','product','item','name'],Type:['type','brand','generic'],Category:['category','class','therap'],Quantity:['qty','quantity','units','sold'],Unit_Price:['price','mrp','rate'],Revenue:['revenue','amount','total','sales']};
+const S={rows:[],headers:[],map:{},clean:null,A:null,log:{},charts:[],topKey:'rev',step:1};
+const mem={},store={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
+const inr=v=>'₹'+Math.round(v).toLocaleString('en-IN'),pc=v=>(v>=0?'+':'')+v.toFixed(1)+'%';
+function toast(t){let e=$('#toast');if(!e){e=document.createElement('div');e.id='toast';e.className='toast';document.body.appendChild(e)}e.textContent=t;e.style.opacity=1;clearTimeout(toast.t);toast.t=setTimeout(()=>e.style.opacity=0,2600)}
+
+/* auth */
+let mode='in';const sha=async t=>[...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(t)))].map(x=>x.toString(16).padStart(2,'0')).join('');
+$$('#authTabs button').forEach(b=>b.onclick=()=>{mode=b.dataset.m;$$('#authTabs button').forEach(x=>x.className='btn flex-1'+(x===b?'':' ghost'));$('#nameRow').classList.toggle('hide',mode==='in');$('#aGo').textContent=mode==='in'?'Sign in':'Create account';$('#aErr').textContent=''});
+$('#aGo').onclick=async()=>{const e=$('#aEmail').value.trim().toLowerCase(),p=$('#aPass').value,n=$('#aName').value.trim(),err=$('#aErr');
+ if(!/^\S+@\S+\.\S+$/.test(e))return err.textContent='Enter a valid email.';if(p.length<6)return err.textContent='Password needs 6+ characters.';
+ let u={};try{u=JSON.parse(store.get('ps_users')||'{}')}catch(x){}const h=await sha(p);
+ if(mode==='up'){if(!n)return err.textContent='Please add your name.';if(u[e])return err.textContent='Account exists. Sign in instead.';u[e]={n,h};store.set('ps_users',JSON.stringify(u));mem.u=n}
+ else{if(!u[e]||u[e].h!==h)return err.textContent='Invalid email or password.';mem.u=u[e].n}
+ $('#auth').classList.add('hide');$('#app').classList.remove('hide');$('#who').textContent='Signed in as '+mem.u;go(1);toast('Welcome, '+mem.u.replace(/^Dr\.?\s*/,'').split(' ')[0]+'.')};
+$('#outBtn').onclick=()=>{$('#app').classList.add('hide');$('#auth').classList.remove('hide');$('#aPass').value=''};
+
+/* steps */
+const NAMES=['Load data','Sales analysis','Summary & export'];
+function go(n){if(n>1&&!S.rows.length)return alert('Load a dataset first.');
+ if(n>1&&!S.clean&&!runClean())return;
+ S.step=n;$$('[data-p]').forEach(p=>p.classList.toggle('hide',+p.dataset.p!==n));
+ $('#steps').innerHTML=NAMES.map((t,i)=>`<div class="step ${S.step===i+1?'on':''} ${S.step>i+1?'done':''}" data-s="${i+1}"><b>${S.step>i+1?'✓':i+1}</b>${t}</div>`).join('');$$('.step').forEach(el=>el.onclick=()=>go(+el.dataset.s));
+ if(n===2)analyse();if(n===3)$('#sumTxt').textContent=text();window.scrollTo(0,0)}
+
+/* sample */
+const SAMPLE=(()=>{const M=[['Crocin 500','Branded','Analgesic',30],['Paracetamol 500','Generic','Analgesic',12],['Augmentin 625','Branded','Antibiotic',200],['Amoxicillin 500','Generic','Antibiotic',60],['Glycomet 500','Branded','Antidiabetic',45],['Metformin 500','Generic','Antidiabetic',15],['Telma 40','Branded','Antihypertensive',120],['Telmisartan 40','Generic','Antihypertensive',35],['Pantocid 40','Branded','Gastro',110],['Pantoprazole 40','Generic','Gastro',40],['Allegra 120','Branded','Antihistamine',180],['Cetirizine 10','Generic','Antihistamine',10],['Azithral 500','Branded','Antibiotic',120],['Atorvastatin 10','Generic','Cardiac',50]];
+ let s=21;const r=()=>(s=(s*9301+49297)%233280)/233280,out=[];
+ for(let mi=0;mi<12;mi++){const mm=(9+mi)%12+1,yy=2025+Math.floor((9+mi)/12),n=Math.round(36+mi*2.8+r()*6);
+  for(let i=0;i<n;i++){const m=M[Math.floor(r()*r()*M.length)],g=m[1]==='Generic',q=g?2+Math.floor(r()*10):1+Math.floor(r()*6),p=Math.round(m[3]*(0.96+r()*.08));
+   const t=r()<.1?(g?'GENERIC':'branded'):m[1],miss=r()<.03;
+   out.push({Date:`${yy}-${String(mm).padStart(2,'0')}-${String(1+Math.floor(r()*27)).padStart(2,'0')}`,Medicine:m[0],Type:t,Category:m[2],Quantity:miss?'':q,Unit_Price:p,Revenue:miss?'':q*p})}}
+ out.push({...out[5]},{...out[40]},{...out[120]});return out})();
+
+/* load */
+function load(rows){if(!rows.length)return alert('No rows found in that file.');
+ S.rows=rows;S.headers=Object.keys(rows[0]);S.clean=null;S.map={};const used=new Set();
+ FIELDS.forEach(f=>{const h=S.headers.find(h=>!used.has(h)&&KEYS[f].some(k=>h.toLowerCase().replace(/[_\s]/g,'').includes(k)));S.map[f]=h||'';if(h)used.add(h)});
+ $('#browse').classList.remove('hide');drawMap();drawRaw()}
+function drawMap(){$('#mapGrid').innerHTML=FIELDS.map(f=>`<div><label class="text-xs mut">${f.replace('_',' ')}</label><select data-f="${f}"><option value="">none</option>${S.headers.map(h=>`<option ${S.map[f]===h?'selected':''}>${h}</option>`).join('')}</select></div>`).join('');
+ $$('#mapGrid select').forEach(s=>s.onchange=()=>{S.map[s.dataset.f]=s.value;S.clean=null;drawRaw()})}
+function toDate(v){if(v instanceof Date)return isNaN(v)?null:v;if(typeof v==='number'&&v>20000)return new Date(Math.round((v-25569)*864e5));const d=new Date(String(v).trim());return isNaN(d)?null:d}
+const mkey=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'),mlab=k=>new Date(+k.slice(0,4),+k.slice(5)-1).toLocaleString('en',{month:'short',year:'2-digit'});
+const num=v=>{const n=parseFloat(String(v).replace(/[₹,$\s,]/g,''));return isFinite(n)?n:null};
+const med=a=>{if(!a.length)return 0;const s=[...a].sort((x,y)=>x-y),m=s.length>>1;return s.length%2?s[m]:(s[m-1]+s[m])/2};
+function drawRaw(){const m=S.map,ds=S.rows.map(r=>toDate(r[m.Date])).filter(Boolean).sort((a,b)=>a-b);
+ const meds=new Set(S.rows.map(r=>String(r[m.Medicine]).trim().toLowerCase())).size;
+ const rng=ds.length?mlab(mkey(ds[0]))+' – '+mlab(mkey(ds[ds.length-1])):'–';
+ $('#rawKpi').innerHTML=kpi([['Records',S.rows.length],['Columns',S.headers.length],['Distinct medicines',meds],['Date range',`<span style="font-size:1.1rem">${rng}</span>`]]);
+ $('#rawTbl').innerHTML=tbl(S.rows.slice(0,50),S.headers)}
+const kpi=a=>a.map(([l,v])=>`<div class="card kpi"><div class="text-xs mut">${l}</div><div class="v">${v}</div></div>`).join('');
+const tbl=(rows,h)=>`<table><thead><tr>${h.map(c=>`<th>${c}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr>${h.map(c=>`<td>${r[c]===''?'<span class="mut">—</span>':r[c]}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+$('#sample').onclick=()=>load(SAMPLE.map(r=>({...r})));
+$('#file').onchange=e=>{const f=e.target.files[0];if(!f)return;const rd=new FileReader();rd.onload=ev=>{try{const wb=XLSX.read(ev.target.result,{type:'array',cellDates:true});load(XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:'',raw:true}))}catch(x){alert('Could not read that file.')}};rd.readAsArrayBuffer(f)};
+const dr=$('#drop');['dragover','drop'].forEach(ev=>dr.addEventListener(ev,e=>{e.preventDefault();if(ev==='drop'){$('#file').files=e.dataTransfer.files;$('#file').onchange({target:$('#file')})}}));
+
+/* clean (automatic) */
+const tc=s=>String(s).trim().replace(/\s+/g,' ');
+function runClean(){const m=S.map;
+ if(!m.Date||!m.Medicine||!m.Type||!m.Quantity||!(m.Unit_Price||m.Revenue)){alert('Please map Date, Medicine, Type, Quantity and Unit price (or Revenue).');return false}
+ let drop=0,imp=0;const qs=S.rows.map(r=>num(r[m.Quantity])).filter(x=>x!==null&&x>0),mq=Math.round(med(qs))||1;
+ const pr={};S.rows.forEach(r=>{const p=m.Unit_Price?num(r[m.Unit_Price]):null,k=tc(r[m.Medicine]).toLowerCase();if(p>0)(pr[k]=pr[k]||[]).push(p)});
+ const allp=med(Object.values(pr).flat());let rows=[];
+ S.rows.forEach(r=>{const d=toDate(r[m.Date]),name=tc(r[m.Medicine]);const t=String(r[m.Type]).toLowerCase();
+  const type=t.includes('brand')?'Branded':t.includes('gen')?'Generic':null;
+  if(!d||!name||!type){drop++;return}
+  let q=num(r[m.Quantity]);if(!(q>0)){q=mq;imp++}
+  let p=m.Unit_Price?num(r[m.Unit_Price]):null;const rv=m.Revenue?num(r[m.Revenue]):null;
+  if(!(p>0)){p=rv>0?rv/q:(med(pr[name.toLowerCase()]||[])||allp);imp++}
+  rows.push({Date:d.toISOString().slice(0,10),Month:mkey(d),Medicine:name,Type:type,Category:m.Category?(tc(r[m.Category])||'Other'):'Uncategorised',Quantity:q,Unit_Price:+p.toFixed(2),Revenue:+(q*p).toFixed(2)})});
+ const seen=new Set(),out=[];rows.forEach(r=>{const k=[r.Date,r.Medicine.toLowerCase(),r.Type,r.Quantity,r.Unit_Price].join('|');if(!seen.has(k)){seen.add(k);out.push(r)}});
+ if(!out.length){alert('No usable rows after cleaning. Check the column mapping.');return false}
+ S.clean=out;S.log={dups:rows.length-out.length,drop,imp};S.A=null;return true}
+
+/* analysis */
+function analyse(){const C=S.clean,A={tot:0,units:0,med:{},cat:{},mon:{},typ:{Branded:{rev:0,units:0,n:0},Generic:{rev:0,units:0,n:0}}};
+ C.forEach(r=>{A.tot+=r.Revenue;A.units+=r.Quantity;const a=A.med[r.Medicine]=A.med[r.Medicine]||{rev:0,units:0,type:r.Type};a.rev+=r.Revenue;a.units+=r.Quantity;
+  A.cat[r.Category]=(A.cat[r.Category]||0)+r.Revenue;const mo=A.mon[r.Month]=A.mon[r.Month]||{rev:0,Branded:0,Generic:0};mo.rev+=r.Revenue;mo[r.Type]+=r.Revenue;
+  const t=A.typ[r.Type];t.rev+=r.Revenue;t.units+=r.Quantity;t.n++});
+ A.months=Object.keys(A.mon).sort();A.growth=A.months.map((k,i)=>i?(A.mon[k].rev-A.mon[A.months[i-1]].rev)/A.mon[A.months[i-1]].rev*100:null);
+ const g=A.growth.filter(x=>x!==null);A.avgG=g.length?g.reduce((a,b)=>a+b,0)/g.length:0;
+ const f=A.mon[A.months[0]].rev,l=A.mon[A.months[A.months.length-1]].rev;A.total=A.months.length>1?(l-f)/f*100:0;
+ A.best=A.months.reduce((b,k)=>A.mon[k].rev>A.mon[b].rev?k:b,A.months[0]);S.A=A;
+ $('#note').textContent=`Based on ${C.length} cleaned records (${S.log.dups} duplicates removed, ${S.log.drop} unusable rows dropped, ${S.log.imp} gaps filled).`;
+ const gs=A.typ.Generic.rev/A.tot*100;
+ $('#kpi').innerHTML=kpi([['Total revenue',inr(A.tot)],['Units sold',A.units.toLocaleString('en-IN')],['Avg monthly growth',pc(A.avgG)],['Generic revenue share',gs.toFixed(1)+'%']]);
+ const ty=A.typ,ap=t=>ty[t].units?ty[t].rev/ty[t].units:0;
+ $('#cmp').innerHTML=`<table><thead><tr><th>Metric</th><th>Branded</th><th>Generic</th></tr></thead><tbody>
+ <tr><td>Revenue</td><td>${inr(ty.Branded.rev)}</td><td>${inr(ty.Generic.rev)}</td></tr><tr><td>Share of revenue</td><td>${(100-gs).toFixed(1)}%</td><td>${gs.toFixed(1)}%</td></tr>
+ <tr><td>Units sold</td><td>${ty.Branded.units}</td><td>${ty.Generic.units}</td></tr><tr><td>Transactions</td><td>${ty.Branded.n}</td><td>${ty.Generic.n}</td></tr>
+ <tr><td>Avg price / unit</td><td>${inr(ap('Branded'))}</td><td>${inr(ap('Generic'))}</td></tr></tbody></table>`;
+ const top=Object.entries(A.med).sort((a,b)=>b[1].rev-a[1].rev),cat=Object.entries(A.cat).sort((a,b)=>b[1]-a[1]),ratio=ap('Generic')?ap('Branded')/ap('Generic'):0;
+ A.top=top;A.catS=cat;A.ratio=ratio;A.gs=gs;
+ $('#take').innerHTML=[`<b>${top[0][0]}</b> (${top[0][1].type}) is the top seller by revenue at ${inr(top[0][1].rev)}, ${(top[0][1].rev/A.tot*100).toFixed(0)}% of the total.`,
+ `Monthly revenue moved from ${inr(A.mon[A.months[0]].rev)} in ${mlab(A.months[0])} to ${inr(A.mon[A.months[A.months.length-1]].rev)} in ${mlab(A.months[A.months.length-1])} (${pc(A.total)}), averaging ${pc(A.avgG)} month on month. Best month: ${mlab(A.best)}.`,
+ `Generic medicines make up ${((ty.Generic.units/A.units)*100).toFixed(0)}% of units but ${gs.toFixed(0)}% of revenue; a branded unit sells for about ${ratio.toFixed(1)}× the price of a generic one.`,
+ `<b>${cat[0][0]}</b> is the largest category, contributing ${inr(cat[0][1])}.`].map(t=>`<li>${t}</li>`).join('');
+ draw()}
+function draw(){S.charts.forEach(c=>c.destroy());S.charts=[];const A=S.A,AC='#0f766e',OR='#e4572e',GR='#e6e8eb';
+ Chart.defaults.color='#6a7673';Chart.defaults.font.family="'DM Sans',sans-serif";const ax={x:{grid:{color:GR}},y:{grid:{color:GR}}},L=A.months.map(mlab);
+ const k=S.topKey,top=Object.entries(A.med).sort((a,b)=>b[1][k]-a[1][k]).slice(0,8);
+ const mk=(id,cfg)=>S.charts.push(new Chart($(id),cfg));
+ mk('#c1',{type:'bar',data:{labels:top.map(x=>x[0]),datasets:[{data:top.map(x=>x[1][k]),backgroundColor:top.map(x=>x[1].type==='Branded'?OR:AC),borderRadius:6}]},options:{indexAxis:'y',plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>(k==='rev'?inr(c.raw):c.raw+' units')+' · '+top[c.dataIndex][1].type}}},scales:ax}});
+ mk('#c2',{type:'line',data:{labels:L,datasets:[{data:A.months.map(m=>A.mon[m].rev),borderColor:AC,backgroundColor:'rgba(15,118,110,.12)',fill:true,tension:.3,pointRadius:4}]},options:{maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>inr(c.raw)}}},scales:ax}});
+ mk('#c3',{type:'bar',data:{labels:L,datasets:[{data:A.growth.map(x=>x===null?0:+x.toFixed(1)),backgroundColor:A.growth.map(x=>x!==null&&x<0?OR:AC),borderRadius:4}]},options:{plugins:{legend:{display:false}},scales:ax}});
+ mk('#c4',{type:'doughnut',data:{labels:['Branded','Generic'],datasets:[{data:[A.typ.Branded.rev,A.typ.Generic.rev],backgroundColor:[OR,AC],borderColor:'#fff'}]},options:{cutout:'62%',plugins:{tooltip:{callbacks:{label:c=>c.label+': '+inr(c.raw)}}}}});
+ mk('#c5',{type:'bar',data:{labels:L,datasets:[{label:'Branded',data:A.months.map(m=>A.mon[m].Branded),backgroundColor:OR},{label:'Generic',data:A.months.map(m=>A.mon[m].Generic),backgroundColor:AC}]},options:{scales:{x:{stacked:true,grid:{color:GR}},y:{stacked:true,grid:{color:GR}}}}});
+ mk('#c6',{type:'bar',data:{labels:A.catS.map(x=>x[0]),datasets:[{data:A.catS.map(x=>x[1]),backgroundColor:AC,borderRadius:6}]},options:{indexAxis:'y',plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>inr(c.raw)}}},scales:ax}})}
+$$('#seg button').forEach(b=>b.onclick=()=>{S.topKey=b.dataset.k;$$('#seg button').forEach(x=>x.classList.toggle('on',x===b));draw()});
+
+/* export */
+function text(){if(!S.A)analyse();const A=S.A,ty=A.typ,l=A.months[A.months.length-1];
+ return `PHARMACY SALES ANALYSIS\nGenerated ${new Date().toLocaleDateString()}\n\n`+
+ `Records analysed: ${S.clean.length} (${S.log.dups} duplicates removed, ${S.log.drop} unusable rows dropped, ${S.log.imp} gaps filled).\n`+
+ `Total revenue ${inr(A.tot)} from ${A.units} units across ${A.months.length} months (${mlab(A.months[0])} to ${mlab(l)}).\n`+
+ `Top sellers by revenue: ${A.top.slice(0,5).map(x=>x[0]+' ('+inr(x[1].rev)+')').join(', ')}.\n`+
+ `Monthly growth: ${pc(A.total)} overall, ${pc(A.avgG)} average month on month, best month ${mlab(A.best)}.\n`+
+ `Branded: ${inr(ty.Branded.rev)} (${(100-A.gs).toFixed(1)}%), ${ty.Branded.units} units. Generic: ${inr(ty.Generic.rev)} (${A.gs.toFixed(1)}%), ${ty.Generic.units} units. A branded unit costs about ${A.ratio.toFixed(1)}× a generic unit.\n`+
+ `Top categories: ${A.catS.slice(0,3).map(x=>x[0]+' ('+inr(x[1])+')').join(', ')}.`}
+const dl=(b,n)=>{const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=n;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000)};
+$('#exTxt').onclick=async()=>{try{await navigator.clipboard.writeText(text());toast('Summary copied to clipboard.')}catch(e){toast('Copy blocked here. Select the text and copy manually.')}};
+$('#exCsv').onclick=()=>{const q=v=>`"${String(v).replace(/"/g,'""')}"`,H=['Date','Medicine','Type','Category','Quantity','Unit_Price','Revenue'];dl(new Blob([[H.join(','),...S.clean.map(r=>H.map(h=>q(r[h])).join(','))].join('\n')],{type:'text/csv'}),'cleaned_sales.csv');toast('Cleaned data downloaded as CSV.')};
+$('#exPdf').onclick=()=>{try{const d=new jspdf.jsPDF();d.setFontSize(18);d.text('Pharmacy Sales Report',15,20);d.setFontSize(10);const t=text().replace(/₹/g,'Rs ').split('\n').slice(2).join('\n');d.text(d.splitTextToSize(t,180),15,30);
+ if(!S.A)analyse();d.addPage();d.setFontSize(13);d.text('Monthly revenue trend',15,18);d.addImage(S.charts[1].toBase64Image(),'PNG',15,22,180,85);d.text('Top-selling medicines',15,122);d.addImage(S.charts[0].toBase64Image(),'PNG',15,126,180,90);d.save('pharmacy_sales_report.pdf');toast('PDF report downloaded.')}catch(e){toast('PDF export unavailable here.')}};
+$('#exDocx').onclick=async()=>{try{const {Document,Packer,Paragraph,HeadingLevel,TextRun}=docx;const ps=[new Paragraph({text:'Pharmacy Sales Report',heading:HeadingLevel.TITLE}),...text().split('\n').filter(Boolean).slice(1).map(t=>new Paragraph({children:[new TextRun(t)],spacing:{after:140}}))];
+ dl(await Packer.toBlob(new Document({sections:[{children:ps}]})),'pharmacy_sales_report.docx');toast('Word report downloaded.')}catch(e){toast('Word export unavailable here.')}};
+</script>
+</body>
+</html>
